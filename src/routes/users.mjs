@@ -9,6 +9,7 @@ import {
 import { mockUsers } from "../../utils/constants.mjs";
 import { createUserValidationSchema } from "../../utils/validationSchemas.mjs";
 import { resolveIndexByUserId } from "../../utils/middlewares.mjs";
+import { User } from "../mongoose/schemas/user.mjs";
 
 const router = Router();
 
@@ -22,6 +23,8 @@ router.get(
     .isLength({ min: 3, max: 10 })
     .withMessage("Msg must be between 3-10 chars"),
   (request, response, next) => {
+    console.log(request.session);
+    console.log(request.session.id);
     const result = validationResult(request);
     if (!result.isEmpty()) {
       result.errors.forEach((err) => {
@@ -51,26 +54,22 @@ router.get(
 router.post(
   "/api/users",
   checkSchema(createUserValidationSchema),
-  (req, res) => {
+  async (req, res) => {
     const result = validationResult(req);
 
-    if (!result.isEmpty()) {
-      return res.status(400).send({ errors: result.array() });
-    }
-
+    if (!result.isEmpty()) return res.send(result.array());
     const data = matchedData(req);
 
     console.log(data);
-
-    console.log(result);
-
-    const newUser = {
-      id: mockUsers[mockUsers.length - 1].id + 1,
-      ...data,
-    };
-    mockUsers.push(newUser);
-    console.log(newUser);
-    return res.status(201).send(newUser);
+    // const { body } = req;
+    const newUser = new User(data);
+    try {
+      const savedUser = await newUser.save();
+      return res.status(201).send(savedUser);
+    } catch (err) {
+      console.log(err);
+      return res.sendStatus(400);
+    }
   }
 );
 
